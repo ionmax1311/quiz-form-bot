@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <title>Forex Quiz</title>
+
+  <!-- Telegram Mini App SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <!-- Supabase JS SDK — напрямую с CDN, без сервера -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Manrope:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+
+  <style>
+    /* ══════════════════════════════════════
+     RESET & TOKENS
+  ══════════════════════════════════════ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    :root {
+      --bg: #0d1117;
+      --bg2: #161b27;
+      --bg3: #1c2333;
+      --line: #2a3a52;
+      --muted: #5b7a9d;
+      --soft: #8fa3be;
+      --text: #d4e0f0;
+      --hi: #eef4ff;
+      --teal: #00c9a7;
+      --teal2: #00f0c8;
+      --gold: #c9a84c;
+      --gold2: #f0cc74;
+      --red: #e05252;
+      --r: 12px;
+      --serif: 'DM Serif Display', serif;
+      --mono: 'DM Mono', monospace;
+      --sans: 'Manrope', sans-serif;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Grid texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 201, 167, .03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 201, 167, .03) 1px, transparent 1px);
+      background-size: 44px 44px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh
+    }
+
+    /* ══════════════════════════════════════
+     SCREENS
+  ══════════════════════════════════════ */
+    .screen {
+      display: none;
+      flex-direction: column;
+      min-height: 100vh;
+      padding: 20px 18px 40px;
+      animation: up .3s cubic-bezier(.16, 1, .3, 1);
+    }
+
+    .screen.on {
+      display: flex
+    }
+
+    @keyframes up {
+      from {
+        opacity: 0;
+        transform: translateY(12px)
+      }
+
+      to {
+        opacity: 1;
+        transform: none
+      }
+    }
+
+    /* ══════════════════════════════════════
+     LOADING
+  ══════════════════════════════════════ */
+    #sLoad {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      gap: 16px;
+    }
+
+    .spin {
+      width: 38px;
+      height: 38px;
+      border: 2px solid var(--line);
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg)
+      }
+    }
+
+    .spin-label {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    /* ══════════════════════════════════════
+     HEADER
+  ══════════════════════════════════════ */
+    .hd {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 24px;
+    }
+
+    .hd-ico {
+      width: 44px;
+      height: 44px;
+      flex-shrink: 0;
+      background: linear-gradient(135deg, var(--teal), #0088ff);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 18px rgba(0, 201, 167, .2);
+    }
+
+    .hd-name {
+      font-family: var(--serif);
+      font-size: 20px;
+      color: var(--hi);
+      line-height: 1.2
+    }
+
+    .hd-sub {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+      margin-top: 2px
+    }
+
+    /* ══════════════════════════════════════
+     PROGRESS
+  ══════════════════════════════════════ */
+    .prog {
+      margin-bottom: 22px
+    }
+
+    .prog-top {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px
+    }
+
+    .prog-lbl {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: .04em
+    }
+
+    .prog-score {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--teal)
+    }
+
+    .bar {
+      height: 3px;
+      background: var(--line);
+      border-radius: 99px;
+      overflow: hidden
+    }
+
+    .bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--teal), var(--teal2));
+      border-radius: 99px;
+      box-shadow: 0 0 8px rgba(0, 201, 167, .45);
+      transition: width .45s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    /* ══════════════════════════════════════
+     QUESTION CARD
+  ══════════════════════════════════════ */
+    .qcard {
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+      margin-bottom: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .qcard::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--teal), transparent);
+    }
+
+    .qnum {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 10px;
+    }
+
+    .qtext {
+      font-family: var(--serif);
+      font-size: 18px;
+      color: var(--hi);
+      line-height: 1.45;
+    }
+
+    /* ══════════════════════════════════════
+     OPTIONS
+  ══════════════════════════════════════ */
+    .opts {
+      display: flex;
+      flex-direction: column;
+      gap: 9px
+    }
+
+    .opt {
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 13px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      transition: border-color .15s, background .15s, transform .1s;
+      user-select: none;
+    }
+
+    .opt:active:not(.lock) {
+      transform: scale(.98)
+    }
+
+    .opt:hover:not(.lock) {
+      border-color: var(--muted);
+      background: var(--bg3)
+    }
+
+    .opt.lock {
+      cursor: default;
+      pointer-events: none
+    }
+
+    .opt-k {
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+      border-radius: 8px;
+      background: var(--bg3);
+      border: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      transition: all .15s;
+    }
+
+    .opt-v {
+      font-size: 14px;
+      font-weight: 500;
+      flex: 1;
+      line-height: 1.4
+    }
+
+    .opt.ok {
+      border-color: var(--teal);
+      background: rgba(0, 201, 167, .07)
+    }
+
+    .opt.ok .opt-k {
+      background: var(--teal);
+      color: #000;
+      border-color: var(--teal);
+      font-weight: 700
+    }
+
+    .opt.no {
+      border-color: var(--red);
+      background: rgba(224, 82, 82, .07)
+    }
+
+    .opt.no .opt-k {
+      background: var(--red);
+      color: #fff;
+      border-color: var(--red)
+    }
+
+    /* ══════════════════════════════════════
+     EXPLANATION
+  ══════════════════════════════════════ */
+    .expl {
+      background: rgba(0, 201, 167, .05);
+      border: 1px solid rgba(0, 201, 167, .15);
+      border-radius: var(--r);
+      padding: 13px 15px;
+      font-size: 13px;
+      color: var(--soft);
+      line-height: 1.6;
+      margin-top: 12px;
+      display: none;
+      animation: up .3s ease;
+    }
+
+    .expl.on {
+      display: block
+    }
+
+    .expl b {
+      color: var(--teal)
+    }
+
+    /* ══════════════════════════════════════
+     BUTTONS
+  ══════════════════════════════════════ */
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: var(--r);
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: .01em;
+      transition: opacity .15s, transform .1s;
+    }
+
+    .btn:active {
+      transform: scale(.97);
+      opacity: .9
+    }
+
+    .btn:disabled {
+      opacity: .35;
+      cursor: not-allowed;
+      transform: none
+    }
+
+    .btn-teal {
+      background: linear-gradient(135deg, var(--teal), var(--teal2));
+      color: #0d1117
+    }
+
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold), var(--gold2));
+      color: #0d1117
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--line);
+      color: var(--text)
+    }
+
+    .btn-ghost:hover {
+      border-color: var(--muted)
+    }
+
+    .btns {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 22px
+    }
+
+    /* ══════════════════════════════════════
+     RESULT
+  ══════════════════════════════════════ */
+    .rhero {
+      text-align: center;
+      padding: 28px 0 22px
+    }
+
+    .rico {
+      font-size: 52px;
+      display: block;
+      margin-bottom: 10px
+    }
+
+    .rtitle {
+      font-family: var(--serif);
+      font-size: 28px;
+      color: var(--hi);
+      margin-bottom: 4px
+    }
+
+    .rsub {
+      font-size: 14px;
+      color: var(--muted)
+    }
+
+    .rsub strong {
+      color: var(--text);
+      font-size: 22px;
+      font-family: var(--mono)
+    }
+
+    .strack {
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 15px 18px;
+      margin-bottom: 18px;
+    }
+
+    .strack-lbl {
+      font-size: 10px;
+      font-family: var(--mono);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--muted);
+      margin-bottom: 9px;
+    }
+
+    .sbar {
+      height: 6px;
+      background: var(--bg3);
+      border-radius: 99px;
+      overflow: hidden
+    }
+
+    .sbar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--gold), var(--gold2));
+      box-shadow: 0 0 10px rgba(201, 168, 76, .35);
+      transition: width .7s cubic-bezier(.16, 1, .3, 1) .15s;
+    }
+
+    .sep {
+      height: 1px;
+      background: var(--line);
+      margin: 20px 0
+    }
+
+    /* ══════════════════════════════════════
+     FORM
+  ══════════════════════════════════════ */
+    .ftitle {
+      font-family: var(--serif);
+      font-size: 22px;
+      color: var(--hi);
+      margin-bottom: 4px
+    }
+
+    .fsub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 20px
+    }
+
+    .fld {
+      margin-bottom: 14px
+    }
+
+    .fld-lbl {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: var(--muted);
+      font-family: var(--mono);
+      margin-bottom: 6px;
+    }
+
+    .fld-in,
+    .fld-ta {
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 12px 14px;
+      font-family: var(--sans);
+      font-size: 14px;
+      color: var(--hi);
+      outline: none;
+      resize: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    .fld-in::placeholder,
+    .fld-ta::placeholder {
+      color: var(--muted)
+    }
+
+    .fld-in:focus,
+    .fld-ta:focus {
+      border-color: var(--teal);
+      box-shadow: 0 0 0 3px rgba(0, 201, 167, .1);
+    }
+
+    .fld-ta {
+      min-height: 88px
+    }
+
+    .fld-err {
+      font-size: 12px;
+      color: var(--red);
+      margin-top: 5px;
+      display: none
+    }
+
+    .fld-err.on {
+      display: block;
+      animation: up .2s ease
+    }
+
+    /* ══════════════════════════════════════
+     TOAST
+  ══════════════════════════════════════ */
+    .toast {
+      position: fixed;
+      bottom: 26px;
+      left: 50%;
+      transform: translateX(-50%) translateY(60px);
+      background: var(--bg2);
+      border: 1px solid var(--line);
+      border-radius: 99px;
+      padding: 10px 22px;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: transform .35s cubic-bezier(.34, 1.56, .64, 1);
+      z-index: 999;
+      pointer-events: none;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+    }
+
+    .toast.on {
+      transform: translateX(-50%) translateY(0)
+    }
+
+    .toast.ok {
+      border-color: var(--teal);
+      color: var(--teal)
+    }
+
+    .toast.err {
+      border-color: var(--red);
+      color: var(--red)
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+
+    <!-- Loading -->
+    <div id="sLoad">
+      <div class="spin"></div>
+      <div class="spin-label">загружаем вопросы...</div>
+    </div>
+
+    <!-- Quiz -->
+    <div class="screen" id="sQuiz">
+      <div class="hd">
+        <div class="hd-ico">📊</div>
+        <div>
+          <div class="hd-name">Forex Quiz</div>
+          <div class="hd-sub">форекс · инвестиции · рынки</div>
+        </div>
+      </div>
+
+      <div class="prog">
+        <div class="prog-top">
+          <span class="prog-lbl" id="pLbl">ВОПРОС 1 / 3</span>
+          <span class="prog-score" id="pScore">0 верных</span>
+        </div>
+        <div class="bar">
+          <div class="bar-fill" id="pFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="qcard">
+        <div class="qnum" id="qNum">ВОПРОС 01</div>
+        <div class="qtext" id="qText">...</div>
+      </div>
+
+      <div class="opts" id="optList"></div>
+      <div class="expl" id="expl"></div>
+
+      <div class="btns">
+        <button class="btn btn-teal" id="btnNext" style="display:none" onclick="next()"></button>
+      </div>
+    </div>
+
+    <!-- Result + Feedback -->
+    <div class="screen" id="sResult">
+      <div class="hd">
+        <div class="hd-ico">🏆</div>
+        <div>
+          <div class="hd-name">Результат</div>
+          <div class="hd-sub">квиз завершён</div>
+        </div>
+      </div>
+
+      <div class="rhero">
+        <span class="rico" id="rIco">🎯</span>
+        <div class="rtitle" id="rTitle">Отлично!</div>
+        <div class="rsub">Правильных: <strong id="rScore">3 / 3</strong></div>
+      </div>
+
+      <div class="strack">
+        <div class="strack-lbl">Ваш результат</div>
+        <div class="sbar">
+          <div class="sbar-fill" id="sFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="ftitle">Обратная связь</div>
+      <div class="fsub">Оставьте контакты — мы свяжемся с вами</div>
+
+      <div class="fld">
+        <label class="fld-lbl">Имя *</label>
+        <input class="fld-in" id="fName" type="text" placeholder="Ваше имя" maxlength="100" />
+        <div class="fld-err" id="fNameErr">Введите имя</div>
+      </div>
+
+      <div class="fld">
+        <label class="fld-lbl">Сообщение *</label>
+        <textarea class="fld-ta" id="fMsg" placeholder="Вопрос или комментарий..." maxlength="1000"></textarea>
+        <div class="fld-err" id="fMsgErr">Напишите сообщение</div>
+      </div>
+
+      <div class="btns">
+        <button class="btn btn-gold" id="btnSend" onclick="send()">Отправить</button>
+        <button class="btn btn-ghost" onclick="restart()">🔄 Пройти ещё раз</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ══════════════════════════════════════════════
+    // КОНФИГУРАЦИЯ SUPABASE
+    // anon key — специально предназначен для фронтенда
+    // ══════════════════════════════════════════════
+    const SUPABASE_URL = 'https://bokoiljrbigobkemslxh.supabase.co';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJva29pbGpyYmlnb2JrZW1zbHhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA2OTA2MzksImV4cCI6MjA4NjI2NjYzOX0.ZLUKFKZkx85fXtJJlu-BtPcBoQgp1cJvlvkyGeFFU_M';
+    // Получить: Supabase → Settings → API → anon public
+
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+    // ══════════════════════════════════════════════
+    // TELEGRAM
+    // ══════════════════════════════════════════════
+    const tg = window.Telegram?.WebApp ?? null;
+    if (tg) { tg.ready(); tg.expand(); tg.setHeaderColor('#0d1117'); tg.setBackgroundColor('#0d1117'); }
+    const TG = tg?.initDataUnsafe?.user ?? null;
+
+    // ══════════════════════════════════════════════
+    // STATE
+    // ══════════════════════════════════════════════
+    const LABELS = ['A', 'B', 'C', 'D'];
+    let questions = [], cur = 0, score = 0, answered = false, answers = [];
+
+    // ══════════════════════════════════════════════
+    // INIT — загрузка вопросов из Supabase
+    // ══════════════════════════════════════════════
+    async function init() {
+      try {
+        const { data, error } = await sb
+          .from('quiz_questions')
+          .select('id, question_text, options, correct_index, explanation')
+          .eq('is_active', true)
+          .limit(3)
+          .order('id'); // можно заменить на случайный порядок через RPC
+
+        if (error) throw error;
+        if (!data?.length) throw new Error('Нет вопросов в базе');
+
+        // Перемешиваем вопросы случайно на клиенте
+        questions = data.sort(() => Math.random() - 0.5);
+
+        hide('sLoad');
+        show('sQuiz');
+        render();
+      } catch (e) {
+        console.error(e);
+        g('sLoad').innerHTML = `
+      <div style="text-align:center;padding:40px 20px">
+        <div style="font-size:44px;margin-bottom:12px">⚠️</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#eef4ff;margin-bottom:8px">Ошибка загрузки</div>
+        <div style="font-size:13px;color:#5b7a9d">${e.message}</div>
+      </div>`;
+      }
+    }
+
+    // ══════════════════════════════════════════════
+    // RENDER QUESTION
+    // ══════════════════════════════════════════════
+    function render() {
+      answered = false;
+      const q = questions[cur];
+      const opts = Array.isArray(q.options) ? q.options : JSON.parse(q.options);
+      const pct = (cur / questions.length) * 100;
+
+      g('pFill').style.width = pct + '%';
+      g('pLbl').textContent = `ВОПРОС ${cur + 1} / ${questions.length}`;
+      g('pScore').textContent = score + ' верных';
+      g('qNum').textContent = 'ВОПРОС ' + String(cur + 1).padStart(2, '0');
+      g('qText').textContent = q.question_text;
+
+      g('optList').innerHTML = opts.map((o, i) => `
+    <div class="opt" id="o${i}" onclick="pick(${i})">
+      <div class="opt-k">${LABELS[i]}</div>
+      <div class="opt-v">${o}</div>
+    </div>`).join('');
+
+      const ex = g('expl');
+      ex.classList.remove('on');
+      ex.innerHTML = '';
+      const bn = g('btnNext');
+      bn.style.display = 'none';
+    }
+
+    // ══════════════════════════════════════════════
+    // PICK ANSWER
+    // ══════════════════════════════════════════════
+    function pick(idx) {
+      if (answered) return;
+      answered = true;
+
+      const q = questions[cur];
+      const opts = Array.isArray(q.options) ? q.options : JSON.parse(q.options);
+      const correct = q.correct_index;
+      const right = idx === correct;
+
+      if (right) score++;
+      answers.push({ question_id: q.id, chosen: idx, correct, is_correct: right });
+
+      opts.forEach((_, i) => {
+        const d = g('o' + i);
+        d.classList.add('lock');
+        if (i === correct) d.classList.add('ok');
+        if (i === idx && !right) d.classList.add('no');
+      });
+
+      if (q.explanation) {
+        const ex = g('expl');
+        ex.innerHTML = `<b>${right ? '✓ Верно!' : '✗ Неверно.'}</b> ${q.explanation}`;
+        ex.classList.add('on');
+      }
+
+      g('pScore').textContent = score + ' верных';
+      const bn = g('btnNext');
+      bn.style.display = 'block';
+      bn.textContent = cur + 1 < questions.length ? 'Следующий вопрос →' : 'Завершить ✓';
+    }
+
+    // ══════════════════════════════════════════════
+    // NEXT
+    // ══════════════════════════════════════════════
+    function next() {
+      cur++;
+      if (cur >= questions.length) {
+        saveResult();
+        showResult();
+      } else {
+        render();
+      }
+    }
+
+    // ══════════════════════════════════════════════
+    // SAVE RESULT → Supabase (fire and forget)
+    // ══════════════════════════════════════════════
+    async function saveResult() {
+      try {
+        await sb.from('quiz_results').insert({
+          tg_user_id: TG?.id ?? null,
+          tg_username: TG?.username ?? null,
+          score,
+          total: questions.length,
+          answers: answers,
+        });
+      } catch (e) { console.warn('result save:', e.message); }
+    }
+
+    // ══════════════════════════════════════════════
+    // SHOW RESULT
+    // ══════════════════════════════════════════════
+    function showResult() {
+      const total = questions.length;
+      const pct = Math.round(score / total * 100);
+      const cfg = score === total ? { ico: '🏆', title: 'Идеальный результат!' }
+        : score >= total - 1 ? { ico: '🎯', title: 'Почти идеально!' }
+          : score >= 1 ? { ico: '📈', title: 'Неплохой старт!' }
+            : { ico: '💪', title: 'Продолжай учиться!' };
+
+      g('rIco').textContent = cfg.ico;
+      g('rTitle').textContent = cfg.title;
+      g('rScore').textContent = `${score} / ${total}`;
+
+      if (TG?.first_name) g('fName').value = TG.first_name;
+
+      hide('sQuiz');
+      show('sResult');
+      setTimeout(() => { g('sFill').style.width = pct + '%'; }, 100);
+    }
+
+    // ══════════════════════════════════════════════
+    // SEND FEEDBACK → Supabase
+    // ══════════════════════════════════════════════
+    async function send() {
+      const nameEl = g('fName'), msgEl = g('fMsg');
+      const nameEr = g('fNameErr'), msgEr = g('fMsgErr');
+      const btn = g('btnSend');
+
+      nameEr.classList.remove('on');
+      msgEr.classList.remove('on');
+
+      let ok = true;
+      if (!nameEl.value.trim()) { nameEr.classList.add('on'); ok = false; }
+      if (!msgEl.value.trim()) { msgEr.classList.add('on'); ok = false; }
+      if (!ok) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Отправляем...';
+
+      try {
+        const { error } = await sb.from('feedback').insert({
+          tg_user_id: TG?.id ?? null,
+          name: nameEl.value.trim(),
+          message: msgEl.value.trim(),
+          quiz_score: score,
+        });
+
+        if (error) throw error;
+
+        toast('✓ Сообщение отправлено!', 'ok');
+        nameEl.value = '';
+        msgEl.value = '';
+        btn.textContent = 'Отправлено ✓';
+        
+        if (tg) {
+          // Отправляем данные боту перед закрытием
+          tg.sendData(JSON.stringify({
+            type: 'feedback_sent',
+            score,
+            total: questions.length,
+          }));
+          setTimeout(() => tg.close(), 1800);
+        }
+      } catch (e) {
+        toast('✗ ' + (e.message || 'Ошибка'), 'err');
+        btn.disabled = false;
+        btn.textContent = 'Отправить';
+      }
+    }
+
+    // ══════════════════════════════════════════════
+    // RESTART
+    // ══════════════════════════════════════════════
+    async function restart() {
+      cur = 0; score = 0; answered = false; answers = [];
+      hide('sResult');
+      g('sLoad').style.display = 'flex';
+      g('sLoad').innerHTML = '<div class="spin"></div><div class="spin-label">загружаем вопросы...</div>';
+      await init();
+    }
+
+    // ══════════════════════════════════════════════
+    // HELPERS
+    // ══════════════════════════════════════════════
+    const g = id => document.getElementById(id);
+    const show = id => { const el = g(id); el.style.display = ''; el.classList.add('on'); };
+    const hide = id => { const el = g(id); el.classList.remove('on'); el.style.display = 'none'; };
+
+    function toast(msg, type = 'ok') {
+      const t = g('toast');
+      t.textContent = msg;
+      t.className = `toast ${type} on`;
+      setTimeout(() => t.classList.remove('on'), 3000);
+    }
+
+    // ══════════════════════════════════════════════
+    // START
+    // ══════════════════════════════════════════════
+    init();
+  </script>
+</body>
+
+</html>
