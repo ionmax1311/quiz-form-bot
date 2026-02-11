@@ -6,12 +6,12 @@ export const keyboards = {
   firstStart: () =>
     Markup.keyboard([
       ['🚀 Старт'],
-    ]).resize(),
+    ]).resize().persistent(),
 
   // Основная клавиатура с квизом
   main: () =>
     Markup.keyboard([
       [Markup.button.webApp('📊 Открыть Forex Quiz', config.miniapp.url)],
       ['ℹ️ О боте'],
-    ]).resize(),
+    ]).resize().persistent(),
 };
